@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'chats',  # Our messaging 
     'rest_framework',
+    'django_filters',
     'rest_framework_simplejwt',
     'messaging_app.chats', 
 ]
@@ -151,6 +152,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+    "DEFAULT_FILTER_BACKENDS": (
+        "django_filters.rest_framework.DjangoFilterBackend",
+    ),
+    "DEFAULT_PAGINATION_CLASS": "messaging_app.chats.pagination.MessagePagination",
+    "PAGE_SIZE": 20,  # fallback if class not used
 }
 
 # CORS settings
