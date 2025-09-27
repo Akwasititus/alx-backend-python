@@ -27,6 +27,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         """
         conversation_id = self.kwargs.get("conversation_id")
         conversation = Conversation.objects.filter(id=conversation_id).first()
+        pagination_class = MessagePagination
         if conversation and conversation.participants.filter(id=self.request.user.id).exists():
             return Message.objects.filter(conversation_id=conversation_id)
         # Explicitly return 403 Forbidden if not a participant
@@ -35,4 +36,3 @@ class MessageViewSet(viewsets.ModelViewSet):
             message="You are not a participant of this conversation.",
             code=status.HTTP_403_FORBIDDEN,
         )
-        

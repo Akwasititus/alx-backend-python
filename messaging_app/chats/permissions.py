@@ -28,9 +28,4 @@ class IsParticipantOfConversation(permissions.BasePermission):
             conversation = getattr(obj, "conversation", obj)
             return conversation.participants.filter(id=request.user.id).exists()
         return False
-
-
-class MessagePagination(PageNumberPagination):
-    page_size = 20  # ✅ 20 messages per page
-    page_size_query_param = "page_size"
-    max_page_size = 100
+        
