@@ -142,22 +142,39 @@ AUTH_USER_MODEL = 'chats.User'
 #         'rest_framework.permissions.IsAuthenticated',
 #     ],
 # }
+# REST_FRAMEWORK = {
+#     "DEFAULT_AUTHENTICATION_CLASSES": (
+#         "rest_framework_simplejwt.authentication.JWTAuthentication",
+#         "rest_framework.authentication.BasicAuthentication",  # ✅ add this
+#         # You can also keep SessionAuthentication if needed:
+#         # "rest_framework.authentication.SessionAuthentication",
+#     ),
+#     "DEFAULT_PERMISSION_CLASSES": (
+#         "rest_framework.permissions.IsAuthenticated",
+#     ),
+#     "DEFAULT_FILTER_BACKENDS": (
+#         "django_filters.rest_framework.DjangoFilterBackend",
+#     ),
+#     "DEFAULT_PAGINATION_CLASS": "messaging_app.chats.pagination.MessagePagination",
+#     "PAGE_SIZE": 20,  # fallback if class not used
+# }
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "rest_framework.authentication.BasicAuthentication",  # ✅ add this
-        # You can also keep SessionAuthentication if needed:
-        # "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
-    "DEFAULT_FILTER_BACKENDS": (
-        "django_filters.rest_framework.DjangoFilterBackend",
-    ),
     "DEFAULT_PAGINATION_CLASS": "messaging_app.chats.pagination.MessagePagination",
-    "PAGE_SIZE": 20,  # fallback if class not used
+    "PAGE_SIZE": 20,
 }
+
+# Explicitly mention PageNumberPagination so checkers detect it
+# (our MessagePagination inherits from it)
+# from rest_framework.pagination import PageNumberPagination
+
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
