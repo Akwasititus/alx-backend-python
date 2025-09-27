@@ -13,18 +13,18 @@ class IsOwner(permissions.BasePermission):
 
 class IsParticipantOfConversation(permissions.BasePermission):
     """
-    Allow only authenticated users who are participants
-    of the conversation to access messages.
+    Allow only authenticated participants to send, view, update, or delete messages.
     """
 
     def has_permission(self, request, view):
-        # User must be logged in
         return request.user and request.user.is_authenticated
 
     def has_object_permission(self, request, view, obj):
         """
-        `obj` is expected to be either a Conversation or a Message
-        with a `.conversation` attribute.
+        Explicitly check for PUT, PATCH, DELETE (update & delete) and GET/POST.
         """
-        conversation = getattr(obj, "conversation", obj)
-        return conversation.participants.filter(id=request.user.id).exists()
+        if request.method in ["PUT", "PATCH", "DELETE", "GET", "POST"]:
+            conversation = getattr(obj, "conversation", obj)
+            return conversation.participants.filter(id=request.user.id).exists()
+        return False
+        
