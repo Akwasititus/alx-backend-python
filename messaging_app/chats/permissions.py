@@ -1,10 +1,11 @@
-from rest_framework.permissions import BasePermission
+# from rest_framework.permissions import BasePermission
+from rest_framework import permissions  # ✅ required import
 
-class IsOwner(BasePermission):
+
+class IsOwner(permissions.BasePermission):
     """
     Allow access only if the requesting user owns the object.
-    Assumes the model has a `user` or `owner` field.
     """
-
     def has_object_permission(self, request, view, obj):
         return obj.user == request.user
+
