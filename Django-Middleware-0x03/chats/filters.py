@@ -1,11 +1,14 @@
-import django_filters
-from .models import Message
+from rest_framework import filters
 
-class MessageFilter(django_filters.FilterSet):
-    user = django_filters.NumberFilter(field_name="user__id", lookup_expr="exact")
-    created_after = django_filters.DateTimeFilter(field_name="created_at", lookup_expr="gte")
-    created_before = django_filters.DateTimeFilter(field_name="created_at", lookup_expr="lte")
 
-    class Meta:
-        model = Message
-        fields = ["user", "created_after", "created_before"]
+class MessageFilter(filters.SearchFilter):
+    def get_search_fields(self, view, request):
+        search_fields = []
+
+        if request.query_params.get('sender'):
+            search_fields.append('sender_id')
+        if request.query_params.get('recipient'):
+            search_fields.append('recipient_id')
+
+        # Default fallback if no filter is applied
+        return search_fields or ['sent_at']

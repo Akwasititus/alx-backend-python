@@ -1,119 +1,82 @@
-import logging
-from datetime import 
-from datetime import datetime, timedelta
-from django.http import HttpResponseForbidden
+from rest_framework.response import Response
+from rest_framework import status
+from collections import defaultdict, deque
+from datetime import datetime
+from django.conf import settings
+import os
 
+
+base_dir = settings.BASE_DIR
+filename = 'requests.log'
+msg_by_ip = []
+
+def log_request(entry):
+    with open(os.path.join(base_dir, filename), 'a') as f:
+        f.write(entry)
+
+def get_client_ip(request):
+    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    if xff:
+        return xff.split(',')[0].strip()
+    return request.META.get("REMOTE_ADDR")
+        
 class RequestLoggingMiddleware:
     def __init__(self, get_response):
-        # Called once when Django starts
         self.get_response = get_response
-        # Set up a dedicated logger
-        self.logger = logging.getLogger("request_logger")
-        handler = logging.FileHandler("requests.log")
-        formatter = logging.Formatter("%(message)s")
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
-        self.logger.setLevel(logging.INFO)
 
     def __call__(self, request):
-        # Called on every request
-        user = request.user if request.user.is_authenticated else "Anonymous"
-        self.logger.info(f"{datetime.now()} - User: {user} - Path: {request.path}")
-        return self.get_response(request)
+        user = request.user
+        log = f"{datetime.now()} - User: {user} - Path: {request.path}" + "\n"
 
+        # log into request.log
+        log_request(log)
+
+        response = self.get_response(request)
+
+        return response
+    
 
 class RestrictAccessByTimeMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        """
-        Deny access to the chat between 6 PM (18:00) and 9 PM (21:00)
-        or outside the allowed window depending on interpretation.
-        """
-        current_hour = datetime.now().hour
-        # Block if time is outside 6:00 to 21:00 (i.e., not between 6 AM and 9 PM)
-        if current_hour < 6 or current_hour > 21:
-            return HttpResponseForbidden(
-                "<h1>403 Forbidden</h1><p>Chat is accessible only between 6 AM and 9 PM.</p>"
-            )
+        current_time = datetime.now()
+        if not current_time.hour >= 18 and not current_time.hour <= 21:
+            return Response({'detail': 'chat cannot be outside 9PM and 6PM'}, status=status.HTTP_403_FORBIDDEN)
+        response = self.get_response(request)
 
-        return self.get_response(request)
+        return response
 
 
 class OffensiveLanguageMiddleware:
-    """
-    Limits each IP to 5 POST requests (chat messages) per minute.
-    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.messages_sent = defaultdict(lambda: deque())
+        self.limit = 5 # requests
+        self.window = 60 # seconds
 
-    # Shared across requests – keeps timestamps of recent messages per IP
-    _ip_activity = {}
+    def __call__(self, request):
+        key = get_client_ip(request)
+        now = datetime.now()
+        q = self.messages_sent[key]
 
+        while q and q[0] <= now - self.window:
+            q.popleft()
+        if len(q) >= self.limit:
+            return Response({"error":"rate limit exceeded"}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        q.append(now)
+        return self.get_response(request)
+
+
+class RolepermissionMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        # Only track POST requests to the chat app (message sends)
-        if request.method == "POST" and request.path.startswith("/chats"):
-            ip = self._get_ip(request)
-            now = datetime.now()
+        user = request.user
 
-            # Purge timestamps older than 1 minute for this IP
-            window_start = now - timedelta(minutes=1)
-            timestamps = self._ip_activity.get(ip, [])
-            timestamps = [t for t in timestamps if t > window_start]
-
-            # Check limit
-            if len(timestamps) >= 5:
-                return HttpResponseForbidden(
-                    "<h1>403 Forbidden</h1>"
-                    "<p>You have exceeded the limit of 5 messages per minute.</p>"
-                )
-
-            # Record this message timestamp
-            timestamps.append(now)
-            self._ip_activity[ip] = timestamps
-
-        return self.get_response(request)
-
-    def _get_ip(self, request):
-        """
-        Safely extract client IP address.
-        """
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            return x_forwarded_for.split(",")[0].strip()
-        return request.META.get("REMOTE_ADDR", "")
-
-
-class RolePermissionMiddleware:
-    """
-    Blocks access to certain views unless the user is an admin or moderator.
-    Assumes request.user has an attribute or group that defines their role.
-    """
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        # You can customize which paths need admin/moderator protection
-        protected_paths = ["/chats/admin/", "/chats/manage/"]
-
-        if any(request.path.startswith(p) for p in protected_paths):
-            user = getattr(request, "user", None)
-
-            # Ensure the user is authenticated and has the correct role/group
-            if not (user and user.is_authenticated and
-                    (getattr(user, "is_superuser", False) or
-                     user.groups.filter(name__in=["admin", "moderator"]).exists())):
-                return HttpResponseForbidden("403 Forbidden: Insufficient role permissions.")
-
-        return self.get_response(request)
-
-
+        if not user or not hasattr(user, 'role') or user.role not in ['admin', 'moderator']:
+            return Response({'detail': 'Only admin or moderator can access this route'}, status=status.HTTP_403_FORBIDDEN)
         
-
-
-
-
-
-
+        return self.get_response(request)

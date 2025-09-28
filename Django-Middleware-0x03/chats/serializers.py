@@ -1,101 +1,85 @@
 from rest_framework import serializers
-from .models import User, Conversation, Message
+from rest_framework.exceptions import ValidationError
+from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
+from .models import Message, Conversation
 
+
+User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the User model.
-    """
-    full_name = serializers.SerializerMethodField()
-    display_name = serializers.CharField(source='get_full_name', read_only=True)
+    password_hash = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = User
-        fields = ['user_id', 'first_name', 'last_name', 'email', 'phone_number', 'role', 'created_at', 'full_name', 'display_name']
-        read_only_fields = ['user_id', 'created_at']
+        fields = ['user_id', 'first_name', 'last_name', 'email', 'phone_number', 'password_hash', 'role', 'created_at']
+        read_only_fields = ['user_id', 'role','created_at']
+        
+    def create(self, validated_data):
+        password_hash = validated_data.pop('password_hash')
+        role = self.context.get('role')
 
-    def get_full_name(self, obj):
-        """
-        Return the user's full name.
-        """
-        return f"{obj.first_name} {obj.last_name}".strip()
+        if not role:
+            validated_data['role'] = 'guest'
+        if not password_hash:
+            raise ValidationError("Password is required.")
+        
+        user = User(**validated_data)
+        user.set_password(password_hash)  # hashes the password properly
+        user.save()
+        return user
 
-    def validate_email(self, value):
-        """
-        Validate email format and uniqueness.
-        """
-        if not value:
-            raise serializers.ValidationError("Email is required.")
-        return value
-
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password_hash', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
+    
 
 class MessageSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the Message model.
-    """
-    sender_name = serializers.SerializerMethodField()
+    # sender = serializers.SerializerMethodField()
+    recipient = serializers.PrimaryKeyRelatedField(
+        required=True,
+        queryset=User.objects.all()
+    )
 
     class Meta:
         model = Message
-        fields = ['message_id', 'sender', 'conversation', 'message_body', 'sent_at', 'sender_name']
-        read_only_fields = ['message_id', 'sender', 'sent_at']
+        fields = ['message_id', 'sender', 'recipient', 'conversation', 'message_body', 'sent_at']
+        read_only_fields = ['message_id', 'sender', 'conversation', 'sent_at']
 
-    def get_sender_name(self, obj):
-        """
-        Return the sender's full name.
-        """
-        return f"{obj.sender.first_name} {obj.sender.last_name}".strip()
+    # def get_message_id(self, obj):
+    #     return obj.sender
 
-    def validate_message_body(self, value):
-        """
-        Validate message body is not empty.
-        """
-        if not value or not value.strip():
-            raise serializers.ValidationError("Message body cannot be empty.")
-        return value.strip()
+    def create(self, validated_data):
+        sender = self.context['request'].user
+        conversation = self.context['conversation']
+        validated_data['sender'] = sender
+        validated_data['conversation'] = conversation
+        return super().create(validated_data)
 
+    
 
 class ConversationSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the Conversation model.
-    Includes nested relationships for participants and messages.
-    """
+    participants = UserSerializer(many=True, read_only=True)  # nested representation
+    participant_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=User.objects.all(),
+        write_only=True,
+        source='participants'  # points to the `participants` field
+    )
     messages = MessageSerializer(many=True, read_only=True)
-    participants = UserSerializer(many=True, read_only=True)
-    participant_count = serializers.SerializerMethodField()
-    last_message = serializers.SerializerMethodField()
 
     class Meta:
         model = Conversation
-        fields = ['conversation_id', 'participants', 'messages', 'created_at', 'participant_count', 'last_message']
-        read_only_fields = ['conversation_id', 'created_at']
+        fields = ['conversation_id', 'participants', 'participant_ids', 'messages', 'created_at']
+        read_only_fields = ['conversation_id', 'participants', 'messages', 'created_at']
 
-    def get_participant_count(self, obj):
-        """
-        Return the number of participants in the conversation.
-        """
-        return obj.participants.count()
-
-    def get_last_message(self, obj):
-        """
-        Return the last message in the conversation.
-        """
-        last_message = obj.messages.first()  # Using first() since ordering is by -sent_at
-        if last_message:
-            return {
-                'message_id': str(last_message.message_id),
-                'message_body': last_message.message_body,
-                'sender': last_message.sender.email,
-                'sent_at': last_message.sent_at
-            }
-        return None
-
-    def validate(self, data):
-        """
-        Validate conversation data.
-        """
-        if hasattr(self, 'initial_data'):
-            participants = self.initial_data.get('participants', [])
-            if len(participants) < 2:
-                raise serializers.ValidationError("A conversation must have at least 2 participants.")
-        return data
+    def create(self, validated_data):
+        participants = validated_data.pop('participants')
+        conversation = Conversation.objects.create()
+        conversation.participants.set(participants)
+        return conversation

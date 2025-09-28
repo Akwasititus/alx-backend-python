@@ -2,7 +2,7 @@
 URL configuration for messaging_app project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.2/topics/http/urls/
+    https://docs.djangoproject.com/en/5.2/topics/http/urls/
 Examples:
 Function views
     1. Add an import:  from my_app import views
@@ -16,19 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from chats.views import MyTokenObtainPairView
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
     TokenRefreshView,
 )
 
-# urlpatterns = [
-#     path('admin/', admin.site.urls),
-#     path('api/', include('chats.urls')),
-#     path('api-auth/', include('rest_framework.urls')),  # For browsable API login
-# ]
+
+BASE_API = "api-auth"
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('messaging_app.chats.urls')),  # your app’s routes
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path(f'{BASE_API}/', include('chats.urls')),
+    path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
