@@ -86,6 +86,34 @@ class OffensiveLanguageMiddleware:
         return request.META.get("REMOTE_ADDR", "")
 
 
+class RolePermissionMiddleware:
+    """
+    Blocks access to certain views unless the user is an admin or moderator.
+    Assumes request.user has an attribute or group that defines their role.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # You can customize which paths need admin/moderator protection
+        protected_paths = ["/chats/admin/", "/chats/manage/"]
+
+        if any(request.path.startswith(p) for p in protected_paths):
+            user = getattr(request, "user", None)
+
+            # Ensure the user is authenticated and has the correct role/group
+            if not (user and user.is_authenticated and
+                    (getattr(user, "is_superuser", False) or
+                     user.groups.filter(name__in=["admin", "moderator"]).exists())):
+                return HttpResponseForbidden("403 Forbidden: Insufficient role permissions.")
+
+        return self.get_response(request)
+
+
+        
+
+
+
 
 
 
