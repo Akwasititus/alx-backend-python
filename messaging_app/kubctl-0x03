@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# Apply the updated deployment
+echo "Applying blue deployment (Rolling Update to v2.0)..."
+kubectl apply -f blue_deployment.yaml
+
+# Monitor rollout progress
+echo "Monitoring rollout status..."
+kubectl rollout status deployment/messaging-app-blue
+
+# Verify pods
+echo "Current Pods:"
+kubectl get pods -l app=messaging-app
+
+# Continuous testing for downtime
+SERVICE_IP=$(minikube ip)
+SERVICE_PORT=8000
+ENDPOINT="http://${SERVICE_IP}:${SERVICE_PORT}"
+
+echo "Testing app availability..."
+for i in {1..10}; do
+  echo "Request $i:"
+  curl --silent --max-time 2 $ENDPOINT || echo "Request failed!"
+  sleep 2
+done
+
+echo "Rolling update verification complete!"

@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: messaging-app
-          image: messaging-app:1.0  # Original version
+          image: messaging-app:2.0  # updated version
           imagePullPolicy: Never
           ports:
             - containerPort: 8000
