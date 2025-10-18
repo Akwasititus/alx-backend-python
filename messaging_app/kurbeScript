@@ -1,0 +1,25 @@
+#!/bin/bash
+# kurbeScript
+# Author: Titus Ayamga
+# Description: Script to start a local Kubernetes cluster with Minikube and verify setup
+
+set -e
+
+echo "🔍 Checking if Minikube is installed..."
+if ! command -v minikube &> /dev/null
+then
+    echo "❌ Minikube is not installed. Please install it before running this script."
+    exit 1
+fi
+echo "✅ Minikube is installed."
+
+echo "🚀 Starting Minikube cluster..."
+minikube start --driver=docker
+
+echo "🔎 Verifying Kubernetes cluster status..."
+kubectl cluster-info
+
+echo "📋 Listing all available pods..."
+kubectl get pods -A
+
+echo "✅ Kubernetes cluster setup and verification complete!"
