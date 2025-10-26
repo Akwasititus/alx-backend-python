@@ -1,6 +1,12 @@
 pipeline {
     agent any
     
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+        DOCKER_IMAGE = "your-dockerhub-username/messaging-app"
+        DOCKER_TAG = "latest"
+    }
+    
     stages {
         // STAGE 1: Get the code from GitHub
         stage('Checkout Code') {
@@ -8,7 +14,6 @@ pipeline {
                 echo '📥 Getting code from GitHub...'
                 git branch: 'main', 
                     url: 'https://github.com/Akwasititus/alx-backend-python.git'
-                // Replace YOUR_USERNAME with your actual GitHub username
             }
         }
         
@@ -32,11 +37,47 @@ pipeline {
                 }
             }
         }
+        
+        // NEW STAGE 4: Build Docker Image
+        stage('Build Docker Image') {
+            steps {
+                echo '🐳 Building Docker image...'
+                script {
+                    dir('messaging_app') {
+                        sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
+                    }
+                }
+            }
+        }
+        
+        // NEW STAGE 5: Push to Docker Hub
+        stage('Push to Docker Hub') {
+            steps {
+                echo '📤 Pushing Docker image to Docker Hub...'
+                script {
+                    // Login to Docker Hub
+                    sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin"
+                    
+                    // Push the image
+                    sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    
+                    // Logout from Docker Hub
+                    sh "docker logout"
+                }
+            }
+        }
     }
     
     post {
         always {
             echo '🎉 Pipeline finished!'
+            cleanWs()  // Clean workspace
+        }
+        success {
+            echo '✅ Pipeline completed successfully! Docker image built and pushed.'
+        }
+        failure {
+            echo '❌ Pipeline failed! Check logs above.'
         }
     }
 }
