@@ -12,10 +12,22 @@ typing_extensions==4.15.0
 tzdata==2025.2
 
 pytest
-pytest-cov
 
-pytest-django
+
+
 Django
 djangorestframework  # if using DRF
 psycopg2-binary     # if using PostgreSQL
 gunicorn            # for production
+
+
+
+mysqlclient>=2.0,<3.0
+pytest-django>=4.4,<5.0
+coverage>=6.0,<7.0
+pytest-cov>=3.0,<4.0
+
+# Optional but recommended for linting
+flake8>=4.0,<5.0
+black>=22.0,<23.0
+isort>=5.0,<6.0
