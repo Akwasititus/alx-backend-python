@@ -1,0 +1,32 @@
+[flake8]
+# Maximum line length
+max-line-length = 88
+
+# Exclude these files and directories
+exclude = 
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    migrations,
+    settings.py,
+    manage.py,
+    */migrations/*,
+    */settings/*
+
+# Ignore these specific errors
+ignore = 
+    E203,  # whitespace before ':' (conflicts with black)
+    W503,  # line break before binary operator
+    E501,  # line too long (handled by black)
+    F401,  # unused imports (sometimes needed for __all__)
+
+# Maximum complexity
+max-complexity = 10
+
+# Show source of errors
+show-source = True
+
+# Statistics
+statistics = True
+
