@@ -1,0 +1,42 @@
+pipeline {
+    agent any
+    
+    stages {
+        // STAGE 1: Get the code from GitHub
+        stage('Checkout Code') {
+            steps {
+                echo '📥 Getting code from GitHub...'
+                git branch: 'main', 
+                    url: 'https://github.com/Akwasititus/alx-backend-python.git'
+                // Replace YOUR_USERNAME with your actual GitHub username
+            }
+        }
+        
+        // STAGE 2: Install Python tools
+        stage('Install Dependencies') {
+            steps {
+                echo '🐍 Installing Python dependencies...'
+                sh 'pip install -r requirements.txt'
+            }
+        }
+        
+        // STAGE 3: Run tests
+        stage('Run Tests') {
+            steps {
+                echo '🧪 Running tests...'
+                sh 'pytest --junitxml=test-results.xml -v'
+            }
+            post {
+                always {
+                    junit 'test-results.xml'
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo '🎉 Pipeline finished!'
+        }
+    }
+}
